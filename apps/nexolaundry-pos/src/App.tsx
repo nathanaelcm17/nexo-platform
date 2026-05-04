@@ -1,8 +1,29 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './stores/auth.store';
+import { LoginPage } from './pages/LoginPage';
+import { POSPage } from './pages/POSPage';
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const token = useAuthStore(s => s.accessToken);
+  if (!token) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 export function App() {
   return (
-    <div style={{ fontFamily: 'Arial', padding: 40, color: '#0D1B2A' }}>
-      <h1 style={{ color: '#00C2FF' }}>◈ NexoLaundry POS</h1>
-      <p>Shell inicial. Ver documento de Arquitectura para el scope de Fase 1.</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/pos"
+          element={
+            <RequireAuth>
+              <POSPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/pos" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

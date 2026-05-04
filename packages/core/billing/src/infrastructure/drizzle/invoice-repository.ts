@@ -1,8 +1,8 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { Invoice, type InvoiceStatus, type NcfType } from '../../domain/invoice.js';
-import type { InvoiceRepository } from '../../domain/ports.js';
+import type { InvoiceRepository, InvoiceListOptions } from '../../domain/ports.js';
 import * as schema from './schema.js';
 
 type Db = NodePgDatabase<typeof schema>;
@@ -73,6 +73,31 @@ export class DrizzleInvoiceRepository implements InvoiceRepository {
         );
       }
     });
+  }
+
+  async list(opts: InvoiceListOptions): Promise<Invoice[]> {
+    const conditions = [];
+    if (opts.customerId) conditions.push(eq(schema.invoices.customerId, opts.customerId));
+    if (opts.orderId)    conditions.push(eq(schema.invoices.orderId,    opts.orderId));
+    if (opts.status)     conditions.push(eq(schema.invoices.status,     opts.status));
+
+    const rows = await this.db.select().from(schema.invoices)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(schema.invoices.createdAt))
+      .limit(opts.limit ?? 50)
+      .offset(opts.offset ?? 0);
+
+    return Promise.all(rows.map(async row => {
+      const lineRows = await this.db.select().from(schema.invoiceLines)
+        .where(eq(schema.invoiceLines.invoiceId, row.invoiceId));
+      return this.toAggregate(row, lineRows);
+    }));
+  }
+
+  async updatePaymentStatus(invoiceId: string, status: InvoiceStatus): Promise<void> {
+    await this.db.update(schema.invoices)
+      .set({ status })
+      .where(eq(schema.invoices.invoiceId, invoiceId));
   }
 
   async nextInvoiceNumber(): Promise<string> {

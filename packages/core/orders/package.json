@@ -1,22 +1,29 @@
-{
-  "name": "@nexo/core-orders",
-  "version": "0.1.0",
-  "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run --passWithNoTests",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@nexo/core-shared-kernel": "workspace:*",
-    "zod": "^3.22.0",
-    "drizzle-orm": "^0.30.0",
-    "pg": "^8.11.0"
-  },
-  "devDependencies": {
-    "@types/pg": "^8.11.0"
-  }
+﻿{
+    "name":  "@nexo/core-orders",
+    "version":  "0.1.0",
+    "private":  true,
+    "main":  "./dist/index.js",
+    "types":  "./dist/index.d.ts",
+    "scripts":  {
+                    "build":  "tsc",
+                    "test":  "vitest run --passWithNoTests",
+                    "lint":  "eslint src --ext .ts",
+                    "typecheck":  "tsc --noEmit"
+                },
+    "dependencies":  {
+                         "@nexo/core-shared-kernel":  "workspace:*",
+                         "zod":  "^3.22.0",
+                         "drizzle-orm":  "^0.30.0",
+                         "pg":  "^8.11.0"
+                     },
+    "devDependencies":  {
+                            "@types/pg":  "^8.11.0"
+                        },
+    "exports":  {
+                    ".":  {
+                              "import":  "./dist/index.js",
+                              "require":  "./dist/index.js",
+                              "types":  "./dist/index.d.ts"
+                          }
+                }
 }

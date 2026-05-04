@@ -1,10 +1,10 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { OrderId } from '@nexo/core-shared-kernel';
 
 import { Order, type OrderStatus, type PaymentStatus, type OrderPriority, type UnitOfMeasure } from '../../domain/order.js';
-import type { OrderRepository } from '../../domain/ports.js';
+import type { OrderRepository, OrderListOptions, OrderSummary } from '../../domain/ports.js';
 import * as schema from './schema.js';
 
 type Db = NodePgDatabase<typeof schema>;
@@ -105,6 +105,53 @@ export class DrizzleOrderRepository implements OrderRepository {
         );
       }
     });
+  }
+
+  async list(opts: OrderListOptions): Promise<OrderSummary[]> {
+    const conditions = [];
+    if (opts.statuses?.length) conditions.push(inArray(schema.orders.status, opts.statuses));
+    if (opts.customerId) conditions.push(eq(schema.orders.customerId, opts.customerId));
+    if (opts.branchId)   conditions.push(eq(schema.orders.branchId,   opts.branchId));
+
+    const rows = await this.db
+      .select({
+        orderId:       schema.orders.orderId,
+        orderNumber:   schema.orders.orderNumber,
+        customerId:    schema.orders.customerId,
+        branchId:      schema.orders.branchId,
+        status:        schema.orders.status,
+        priority:      schema.orders.priority,
+        fulfillmentType: schema.orders.fulfillmentType,
+        total:         schema.orders.total,
+        paymentStatus: schema.orders.paymentStatus,
+        paidAmount:    schema.orders.paidAmount,
+        receivedAt:    schema.orders.receivedAt,
+        promisedAt:    schema.orders.promisedAt,
+        confirmedAt:   schema.orders.confirmedAt,
+        readyAt:       schema.orders.readyAt,
+      })
+      .from(schema.orders)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(schema.orders.receivedAt))
+      .limit(opts.limit ?? 50)
+      .offset(opts.offset ?? 0);
+
+    return rows.map(r => ({
+      orderId:         r.orderId,
+      orderNumber:     r.orderNumber,
+      customerId:      r.customerId,
+      branchId:        r.branchId,
+      status:          r.status as OrderStatus,
+      priority:        r.priority as OrderPriority,
+      fulfillmentType: r.fulfillmentType ?? undefined,
+      total:           Number(r.total),
+      paymentStatus:   r.paymentStatus as PaymentStatus,
+      paidAmount:      Number(r.paidAmount),
+      receivedAt:      r.receivedAt,
+      promisedAt:      r.promisedAt ?? undefined,
+      confirmedAt:     r.confirmedAt ?? undefined,
+      readyAt:         r.readyAt ?? undefined,
+    }));
   }
 
   async nextOrderNumber(): Promise<string> {

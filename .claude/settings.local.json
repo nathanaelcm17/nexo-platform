@@ -13,7 +13,23 @@
       "PowerShell(cd \"c:\\\\Users\\\\n.corporan\\\\Desktop\\\\JS Projects\\\\monorepo\"; $env:NODE_OPTIONS=\"--max-old-space-size=4096\"; pnpm --filter @nexo/core-identity build 2>&1)",
       "Bash(Get-ChildItem -Path \"packages\\\\core\\\\orders\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "PowerShell(docker exec nexo-redis redis-cli ping)",
+      "Bash(DATABASE_URL=\"postgresql://nexo:nexo@localhost:5432/nexolaundry\" timeout 10 pnpm dev:api)",
+      "Bash(DATABASE_URL=\"postgresql://nexo:nexo@localhost:5432/nexolaundry\" timeout 12 pnpm dev:api)",
+      "Bash(DATABASE_URL=\"postgresql://nexo:nexo@localhost:5432/nexolaundry\" timeout 15 pnpm dev:api)",
+      "Bash(DATABASE_URL=\"postgresql://nexo:nexo@localhost:5432/nexolaundry\" NODE_OPTIONS=\"--experimental-require-module\" timeout 15 pnpm dev:api)",
+      "Bash(grep -v \"^$\")",
+      "Bash(DATABASE_URL=\"postgresql://nexo:nexo@localhost:5432/nexolaundry\" pnpm dev:api)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(kill %1)",
+      "Bash(curl -s -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type' -X OPTIONS http://localhost:3000/api/v1/auth/login -I)",
+      "PowerShell(Invoke-RestMethod -Method POST -Uri \"http://localhost:3000/api/v1/auth/login\" -ContentType \"application/json\" -Body '{\"email\":\"admin@demo.com\",\"password\":\"admin123\",\"tenantSlug\":\"demo\"}' -ErrorAction SilentlyContinue)",
+      "PowerShell(cd \"c:\\\\Users\\\\n.corporan\\\\Desktop\\\\JS Projects\\\\monorepo\" ; $proc = Start-Process -FilePath \"pnpm\" -ArgumentList \"--filter @nexo/app-nexolaundry-api dev\" -NoNewWindow -PassThru -RedirectStandardOutput \"api-out.txt\" -RedirectStandardError \"api-err.txt\" ; Start-Sleep -Seconds 8 ; Get-Content api-out.txt, api-err.txt -ErrorAction SilentlyContinue ; $proc.Id)",
+      "Bash(timeout 10 pnpm --filter @nexo/app-nexolaundry-api dev)",
+      "Bash(pnpm --filter @nexo/app-nexolaundry-api dev)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@demo.com\",\"password\":\"admin123\",\"tenantSlug\":\"demo\"}')",
+      "Read(//tmp/**)"
     ]
   }
 }

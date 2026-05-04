@@ -3,7 +3,7 @@ import type { EventBus, DomainEvent } from '@nexo/core-shared-kernel';
 
 type AnyHandler = (event: DomainEvent) => Promise<void>;
 
-const QUEUE_NAME = 'nexo:domain-events';
+const QUEUE_NAME = 'nexo-domain-events';
 
 export class BullMqEventBus implements EventBus {
   private readonly queue: Queue;

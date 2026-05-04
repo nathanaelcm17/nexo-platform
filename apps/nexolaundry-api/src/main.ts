@@ -1,4 +1,10 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { join } from 'node:path';
+
+// Carga .env desde la raíz del monorepo (dos niveles arriba de apps/nexolaundry-api)
+loadEnv({ path: join(process.cwd(), '../../.env') });
+// Fallback: carga también desde el directorio actual por si se corre desde la raíz
+loadEnv({ override: false });
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -74,7 +80,10 @@ async function main() {
 
   const app = express();
   app.use(helmet());
-  app.use(cors({ origin: (process.env.CORS_ORIGINS ?? '').split(','), credentials: true }));
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:5173', 'http://localhost:5174'];
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => {
