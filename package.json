@@ -1,0 +1,40 @@
+{
+  "name": "nexo-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma Nexo - Núcleo reutilizable + vertical NexoLaundry",
+  "author": "Nexovix Soluciones Tecnológicas",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.10.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "pnpm -r --filter='./packages/**' build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "dev:api": "pnpm --filter @nexo/app-nexolaundry-api dev",
+    "dev:pos": "pnpm --filter @nexo/app-nexolaundry-pos dev",
+    "dev:backoffice": "pnpm --filter @nexo/app-nexolaundry-backoffice dev",
+    "db:migrate": "tsx tools/migrations/run.ts",
+    "db:provision-tenant": "tsx tools/provisioner/src/create-tenant.ts",
+    "db:seed-dev": "tsx tools/provisioner/src/seed-dev.ts",
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-boundaries": "^4.2.0",
+    "eslint-plugin-import": "^2.29.0",
+    "prettier": "^3.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}

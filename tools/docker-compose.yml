@@ -1,0 +1,25 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16
+    container_name: nexo-postgres
+    environment:
+      POSTGRES_USER: nexo
+      POSTGRES_PASSWORD: nexo
+      POSTGRES_DB: nexolaundry
+    ports:
+      - '5432:5432'
+    volumes:
+      - nexo-pg-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexo-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - nexo-redis-data:/data
+
+volumes:
+  nexo-pg-data:
+  nexo-redis-data:
