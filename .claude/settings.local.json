@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @nexo/core-shared-kernel build)",
+      "Bash(pnpm --filter @nexo/core-platform-runtime build)",
+      "Bash(pnpm --filter @nexo/core-identity build)",
+      "Bash(pnpm --filter @nexo/vertical-laundry build)",
+      "Bash(pnpm --filter @nexo/app-nexolaundry-api typecheck)",
+      "Bash(pnpm --filter @nexo/core-identity test)",
+      "Bash(pnpm --filter @nexo/core-identity lint)",
+      "Bash(pnpm --filter @nexo/app-nexolaundry-api lint)",
+      "Bash(grep -v \"^--$\")",
+      "PowerShell(cd \"c:\\\\Users\\\\n.corporan\\\\Desktop\\\\JS Projects\\\\monorepo\"; $env:NODE_OPTIONS=\"--max-old-space-size=4096\"; pnpm --filter @nexo/core-identity build 2>&1)"
+    ]
+  }
+}

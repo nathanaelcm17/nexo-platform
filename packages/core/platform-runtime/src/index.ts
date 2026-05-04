@@ -4,7 +4,7 @@
  */
 
 import type { EventBus, DomainEvent } from '@nexo/core-shared-kernel';
-import { z, type ZodSchema } from 'zod';
+import { type ZodSchema } from 'zod';
 import semver from 'semver';
 
 export interface PermissionDefinition {

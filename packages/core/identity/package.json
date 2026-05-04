@@ -14,9 +14,12 @@
     "@nexo/core-shared-kernel": "workspace:*",
     "argon2": "^0.40.0",
     "jsonwebtoken": "^9.0.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "drizzle-orm": "^0.30.0",
+    "pg": "^8.11.0"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.0"
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/pg": "^8.11.0"
   }
 }

@@ -1,11 +1,14 @@
-/**
- * Caso de uso: Login.
- * Valida credenciales, actualiza usuario, emite tokens.
- * Orquesta el dominio con los puertos (no contiene reglas de negocio).
- */
+import { createHash, randomUUID } from 'node:crypto';
 
 import { ForbiddenError, NotFoundError } from '@nexo/core-shared-kernel';
-import type { UserRepository, PasswordHasher, TokenService, TenantRepository } from '../domain/ports.js';
+
+import type {
+  PasswordHasher,
+  RefreshTokenRepository,
+  TenantRepository,
+  TokenService,
+  UserRepository,
+} from '../domain/ports.js';
 
 export interface LoginInput {
   email: string;
@@ -34,6 +37,7 @@ export class LoginUseCase {
     private readonly tenants: TenantRepository,
     private readonly hasher: PasswordHasher,
     private readonly tokens: TokenService,
+    private readonly refreshTokens: RefreshTokenRepository,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginResult> {
@@ -64,18 +68,26 @@ export class LoginUseCase {
     });
     const refreshToken = await this.tokens.issueRefreshToken(user.userId, tenant.tenantId);
 
+    await this.refreshTokens.save({
+      tokenId:   randomUUID(),
+      userId:    user.userId,
+      tenantId:  tenant.tenantId,
+      tokenHash: createHash('sha256').update(refreshToken).digest('hex'),
+      expiresAt: new Date(Date.now() + this.tokens.refreshTokenTtlMs),
+    });
+
     return {
       accessToken,
       refreshToken,
       user: {
-        userId: user.userId,
-        email: user.email,
-        fullName: user.fullName,
+        userId:      user.userId,
+        email:       user.email,
+        fullName:    user.fullName,
         mfaRequired: user.mfaEnabled,
       },
       tenant: {
         tenantId: tenant.tenantId,
-        slug: tenant.slug,
+        slug:     tenant.slug,
       },
     };
   }
