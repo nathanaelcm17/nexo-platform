@@ -41,12 +41,30 @@ importers:
 
   apps/nexolaundry-api:
     dependencies:
+      '@nexo/core-billing':
+        specifier: workspace:*
+        version: link:../../packages/core/billing
+      '@nexo/core-catalog':
+        specifier: workspace:*
+        version: link:../../packages/core/catalog
+      '@nexo/core-customers':
+        specifier: workspace:*
+        version: link:../../packages/core/customers
       '@nexo/core-identity':
         specifier: workspace:*
         version: link:../../packages/core/identity
+      '@nexo/core-orders':
+        specifier: workspace:*
+        version: link:../../packages/core/orders
+      '@nexo/core-payments':
+        specifier: workspace:*
+        version: link:../../packages/core/payments
       '@nexo/core-platform-runtime':
         specifier: workspace:*
         version: link:../../packages/core/platform-runtime
+      '@nexo/core-pos-cash':
+        specifier: workspace:*
+        version: link:../../packages/core/pos-cash
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../../packages/core/shared-kernel
@@ -197,27 +215,57 @@ importers:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/catalog:
     dependencies:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/customers:
     dependencies:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/identity:
     dependencies:
@@ -261,18 +309,38 @@ importers:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/payments:
     dependencies:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/platform-runtime:
     dependencies:
@@ -295,9 +363,19 @@ importers:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   packages/core/reporting-core:
     dependencies:
@@ -322,9 +400,19 @@ importers:
       '@nexo/core-shared-kernel':
         specifier: workspace:*
         version: link:../../core/shared-kernel
+      drizzle-orm:
+        specifier: ^0.30.0
+        version: 0.30.10(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.11.0
+        version: 8.20.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
 
   tools/provisioner:
     dependencies:

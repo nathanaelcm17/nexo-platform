@@ -10,7 +10,10 @@
       "Bash(pnpm --filter @nexo/core-identity lint)",
       "Bash(pnpm --filter @nexo/app-nexolaundry-api lint)",
       "Bash(grep -v \"^--$\")",
-      "PowerShell(cd \"c:\\\\Users\\\\n.corporan\\\\Desktop\\\\JS Projects\\\\monorepo\"; $env:NODE_OPTIONS=\"--max-old-space-size=4096\"; pnpm --filter @nexo/core-identity build 2>&1)"
+      "PowerShell(cd \"c:\\\\Users\\\\n.corporan\\\\Desktop\\\\JS Projects\\\\monorepo\"; $env:NODE_OPTIONS=\"--max-old-space-size=4096\"; pnpm --filter @nexo/core-identity build 2>&1)",
+      "Bash(Get-ChildItem -Path \"packages\\\\core\\\\orders\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(node -e ' *)"
     ]
   }
 }

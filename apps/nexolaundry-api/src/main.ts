@@ -16,19 +16,21 @@ import {
   RefreshTokenUseCase,
   LogoutUseCase,
 } from '@nexo/core-identity';
-import { laundryVertical } from '@nexo/vertical-laundry';
+import { createLaundryVertical } from '@nexo/vertical-laundry';
 
 import { BullMqEventBus } from './infrastructure/bullmq-event-bus.js';
+import { tenantMiddleware } from './middleware/tenant.middleware.js';
+import { authMiddleware } from './middleware/auth.middleware.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
-// Fase 1: importar cuando se monten rutas de negocio
-// import { tenantMiddleware } from './middleware/tenant.middleware.js';
-// import { authMiddleware } from './middleware/auth.middleware.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { createAuthRouter } from './routes/auth.router.js';
+import { createCustomersRouter } from './routes/customers.router.js';
+import { createCatalogRouter } from './routes/catalog.router.js';
+import { createOrdersRouter } from './routes/orders.router.js';
+import { createBillingRouter } from './routes/billing.router.js';
+import { createCashRouter } from './routes/cash.router.js';
+import { createLaundryRouter } from './routes/laundry.router.js';
 
-// ---------------------------------------------------------------------------
-// Logger
-// ---------------------------------------------------------------------------
 const logger: Logger = {
   info:  (msg, meta) => console.log(JSON.stringify({ level: 'info',  msg, ...meta })),
   warn:  (msg, meta) => console.warn(JSON.stringify({ level: 'warn',  msg, ...meta })),
@@ -36,11 +38,7 @@ const logger: Logger = {
   debug: (msg, meta) => console.debug(JSON.stringify({ level: 'debug', msg, ...meta })),
 };
 
-// ---------------------------------------------------------------------------
-// Bootstrap
-// ---------------------------------------------------------------------------
 async function main() {
-  // --- Infraestructura ---
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     min: Number(process.env.DATABASE_POOL_MIN ?? 2),
@@ -48,30 +46,23 @@ async function main() {
   });
 
   const redis = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-    maxRetriesPerRequest: null, // requerido por BullMQ
+    maxRetriesPerRequest: null,
   });
 
   const eventBus = new BullMqEventBus({ host: redis.options.host, port: redis.options.port });
 
-  // --- Platform ---
-  const ctx: PlatformContext = {
-    coreVersion: '0.1.0',
-    eventBus,
-    logger,
-  };
-
+  const ctx: PlatformContext = { coreVersion: '0.1.0', eventBus, logger };
   const platform = new Platform(ctx);
-  platform.registerVertical(laundryVertical);
+  platform.registerVertical(createLaundryVertical(pool));
   await platform.bootstrapAll();
 
-  // --- Servicios Identity ---
-  const tokenService = new JwtTokenService(
+  // Identity — usa public schema directamente (no tenant-scoped)
+  const tokenService     = new JwtTokenService(
     process.env.JWT_ACCESS_SECRET  ?? 'dev-access-secret-change-in-prod',
     process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-in-prod',
     Number(process.env.JWT_ACCESS_TTL  ?? 900),
     Number(process.env.JWT_REFRESH_TTL ?? 604800),
   );
-
   const userRepo         = new DrizzleUserRepository(pool);
   const tenantRepo       = new DrizzleTenantRepository(pool);
   const refreshTokenRepo = new DrizzleRefreshTokenRepository(pool);
@@ -81,37 +72,35 @@ async function main() {
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, tenantRepo, tokenService, refreshTokenRepo);
   const logoutUseCase       = new LogoutUseCase(tokenService, refreshTokenRepo);
 
-  // --- Express ---
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: (process.env.CORS_ORIGINS ?? '').split(','), credentials: true }));
   app.use(express.json({ limit: '1mb' }));
 
-  // Health check (sin autenticación)
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', coreVersion: ctx.coreVersion, time: new Date().toISOString() });
   });
 
-  // Auth routes (sin tenant middleware — usan public schema directamente)
+  // Auth (public schema — sin tenant middleware)
   const authController = new AuthController(loginUseCase, refreshTokenUseCase, logoutUseCase);
   app.use('/api/v1/auth', createAuthRouter(authController));
 
-  // Rutas protegidas de negocio (tenant + auth)
-  // Fase 1: descomentar y añadir routers por bounded context
-  // const tenantMw = tenantMiddleware(pool);
-  // const authMw   = authMiddleware(tokenService);
-  // app.use('/api/v1', tenantMw, authMw, ordersRouter, catalogRouter, ...);
+  // Rutas de negocio — tenant + auth, repos construidos desde req.db en cada router
+  const tenantMw = tenantMiddleware(pool);
+  const authMw   = authMiddleware(tokenService);
 
-  // Exportamos para que los tests puedan usarla antes del listen
+  app.use('/api/v1/customers', tenantMw, authMw, createCustomersRouter());
+  app.use('/api/v1/catalog',   tenantMw, authMw, createCatalogRouter());
+  app.use('/api/v1/orders',    tenantMw, authMw, createOrdersRouter(eventBus));
+  app.use('/api/v1/billing',   tenantMw, authMw, createBillingRouter());
+  app.use('/api/v1/cash',      tenantMw, authMw, createCashRouter());
+  app.use('/api/v1/laundry',   tenantMw, authMw, createLaundryRouter());
+
   app.use(errorMiddleware);
 
-  // --- Arranque ---
   const port = Number(process.env.PORT ?? 3000);
-  const server = app.listen(port, () => {
-    logger.info(`NexoLaundry API listening on :${port}`);
-  });
+  const server = app.listen(port, () => logger.info(`NexoLaundry API listening on :${port}`));
 
-  // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down`);
     server.close(async () => {

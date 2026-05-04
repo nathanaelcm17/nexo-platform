@@ -12,6 +12,11 @@
   },
   "dependencies": {
     "@nexo/core-shared-kernel": "workspace:*",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "drizzle-orm": "^0.30.0",
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0"
   }
 }

@@ -1,5 +1,7 @@
-/**
- * @nexo/core-pos-cash
- * Bounded Context placeholder. Ver plan de implementación en docs/adr y documento de Arquitectura.
- */
-export const CONTEXT_NAME = 'pos-cash';
+export * from './domain/cash-session.js';
+export * from './domain/ports.js';
+export * from './application/open-cash-session.use-case.js';
+export * from './application/record-movement.use-case.js';
+export * from './application/close-cash-session.use-case.js';
+export * from './infrastructure/drizzle/schema.js';
+export * from './infrastructure/drizzle/cash-session-repository.js';

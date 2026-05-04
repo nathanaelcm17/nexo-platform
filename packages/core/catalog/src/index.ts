@@ -1,5 +1,5 @@
-/**
- * @nexo/core-catalog
- * Bounded Context placeholder. Ver plan de implementación en docs/adr y documento de Arquitectura.
- */
-export const CONTEXT_NAME = 'catalog';
+export * from './domain/catalog-item.js';
+export * from './domain/ports.js';
+export * from './application/create-catalog-item.use-case.js';
+export * from './infrastructure/drizzle/schema.js';
+export * from './infrastructure/drizzle/catalog-item-repository.js';

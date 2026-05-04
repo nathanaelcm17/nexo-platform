@@ -1,5 +1,7 @@
+import { drizzle } from 'drizzle-orm/node-postgres';
 import type { Request, Response, NextFunction } from 'express';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
+
 import { TenantId } from '@nexo/core-shared-kernel';
 
 interface TenantRow {
@@ -9,18 +11,18 @@ interface TenantRow {
   status: string;
 }
 
+// Símbolo interno para guardar el client en el request sin exponer el tipo en Express globals
+const DB_CLIENT_KEY = Symbol('tenantDbClient');
+
 function resolveSlug(req: Request): string | null {
-  // 1. Header explícito (dev / mobile)
   const header = req.headers['x-tenant-slug'];
   if (header && typeof header === 'string') return header.trim();
 
-  // 2. Subdominio: acme.nexolaundry.local → acme
   const host = req.hostname ?? '';
   const base = (process.env.TENANT_DOMAIN_BASE ?? 'nexolaundry.local').toLowerCase();
   if (host.endsWith(`.${base}`)) {
     return host.slice(0, host.length - base.length - 1);
   }
-
   return null;
 }
 
@@ -32,12 +34,12 @@ export function tenantMiddleware(pool: Pool) {
       return;
     }
 
+    let client: PoolClient | undefined;
     try {
+      // Verificar tenant en public schema (sin ocupar el client del tenant todavía)
       const result = await pool.query<TenantRow>(
         `SELECT tenant_id, slug, schema_name, status
-         FROM public.tenants
-         WHERE slug = $1
-         LIMIT 1`,
+         FROM public.tenants WHERE slug = $1 LIMIT 1`,
         [slug],
       );
 
@@ -47,14 +49,28 @@ export function tenantMiddleware(pool: Pool) {
         return;
       }
 
+      // Adquirir un client dedicado y setear search_path para el scope del request
+      client = await pool.connect();
+      await client.query(`SET search_path TO "${row.schema_name}", public`);
+
       req.tenant = {
         tenantId:   TenantId(row.tenant_id),
         slug:       row.slug,
         schemaName: row.schema_name,
       };
 
+      // Adjuntar drizzle escopado; los repos lo recibirán en el controller
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any)[DB_CLIENT_KEY] = client;
+      req.db = drizzle(client);
+
+      // Liberar el client al finalizar el response
+      res.on('finish', () => client?.release());
+      res.on('close',  () => client?.release());
+
       next();
     } catch (err) {
+      client?.release();
       next(err);
     }
   };

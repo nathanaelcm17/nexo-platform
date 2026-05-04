@@ -1,5 +1,5 @@
-/**
- * @nexo/core-payments
- * Bounded Context placeholder. Ver plan de implementación en docs/adr y documento de Arquitectura.
- */
-export const CONTEXT_NAME = 'payments';
+export * from './domain/payment.js';
+export * from './domain/ports.js';
+export * from './application/record-payment.use-case.js';
+export * from './infrastructure/drizzle/schema.js';
+export * from './infrastructure/drizzle/payment-repository.js';

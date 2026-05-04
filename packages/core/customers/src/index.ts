@@ -1,5 +1,6 @@
-/**
- * @nexo/core-customers
- * Bounded Context placeholder. Ver plan de implementación en docs/adr y documento de Arquitectura.
- */
-export const CONTEXT_NAME = 'customers';
+export * from './domain/customer.js';
+export * from './domain/ports.js';
+export * from './application/create-customer.use-case.js';
+export * from './application/search-customers.use-case.js';
+export * from './infrastructure/drizzle/schema.js';
+export * from './infrastructure/drizzle/customer-repository.js';
