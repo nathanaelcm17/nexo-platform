@@ -3,6 +3,7 @@ import { ordersApi, billingApi } from '../lib/api';
 import { usePosStore, type DraftLine } from '../stores/pos.store';
 
 export interface SaleReceipt {
+  orderId?:      string;
   ncf:           string;
   invoiceNumber: string;
   change:        number;
@@ -18,8 +19,9 @@ export interface SaleReceipt {
 }
 
 interface PaymentModalProps {
-  onClose:   () => void;
-  onSuccess: (result: SaleReceipt) => void;
+  onClose:       () => void;
+  onSuccess:     (result: SaleReceipt) => void;
+  orderOverride?: import('../lib/api').OrderSummary; // para cobrar orden ready existente
 }
 
 const METHODS = [
@@ -52,7 +54,7 @@ function linesToReceiptLines(lines: DraftLine[]) {
   }));
 }
 
-export function PaymentModal({ onClose, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ onClose, onSuccess, orderOverride }: PaymentModalProps) {
   const { customer, lines, branchId, subtotal, itbis, total, clearOrder } = usePosStore(s => ({
     customer:   s.customer,
     lines:      s.lines,
@@ -63,9 +65,10 @@ export function PaymentModal({ onClose, onSuccess }: PaymentModalProps) {
     clearOrder: s.clearOrder,
   }));
 
-  const orderTotal   = total();
-  const orderSubtotal = subtotal();
-  const orderItbis   = itbis();
+  // Si viene de OrderHistory (orden ya existente), usamos su total directamente
+  const orderTotal    = orderOverride ? orderOverride.total    : total();
+  const orderSubtotal = orderOverride ? orderOverride.total / 1.18 : subtotal();
+  const orderItbis    = orderOverride ? orderOverride.total - orderTotal / 1.18 : itbis();
 
   const [method,        setMethod]        = useState<string>('cash');
   const [ncfType,       setNcfType]       = useState<string>('B02');
@@ -84,37 +87,50 @@ export function PaymentModal({ onClose, onSuccess }: PaymentModalProps) {
     : method !== 'cash' || receivedNum >= orderTotal;
 
   async function handlePay() {
-    if (!customer) return;
+    if (!orderOverride && !customer) return;
     setError('');
     setLoading(true);
 
     try {
-      const orderRes = await ordersApi.create({
-        customerId:      customer.customerId,
-        branchId:        branchId || '50cb49d0-0c62-4582-8597-9e3fbae83835',
-        fulfillmentType: 'laundry_production',
-        lines: lines.map(l => ({
-          catalogItemId: l.catalogItemId,
-          description:   l.name,
-          quantity:      l.quantity,
-          unitOfMeasure: l.unitOfMeasure as never,
-          unitPrice:     l.unitPrice,
-          taxRate:       l.taxRate,
-        })),
-      });
-      await ordersApi.confirm(orderRes.orderId);
+      let resolvedOrderId: string;
+      let resolvedCustomerId: string;
+      let resolvedBranchId: string;
+      let invoiceLines: Array<{ description: string; quantity: number; unitPrice: number; taxRate: number }>;
+
+      if (orderOverride) {
+        // Orden ya existente (ready) — solo facturar y cobrar
+        resolvedOrderId    = orderOverride.orderId;
+        resolvedCustomerId = orderOverride.customerId;
+        resolvedBranchId   = orderOverride.branchId;
+        invoiceLines       = [{ description: `Orden ${orderOverride.orderNumber}`, quantity: 1, unitPrice: orderOverride.total / 1.18, taxRate: 18 }];
+      } else {
+        if (!customer) return;
+        const orderRes = await ordersApi.create({
+          customerId:      customer.customerId,
+          branchId:        branchId || '50cb49d0-0c62-4582-8597-9e3fbae83835',
+          fulfillmentType: 'laundry_production',
+          lines: lines.map(l => ({
+            catalogItemId: l.catalogItemId,
+            description:   l.name,
+            quantity:      l.quantity,
+            unitOfMeasure: l.unitOfMeasure as never,
+            unitPrice:     l.unitPrice,
+            taxRate:       l.taxRate,
+          })),
+        });
+        await ordersApi.confirm(orderRes.orderId);
+        resolvedOrderId    = orderRes.orderId;
+        resolvedCustomerId = customer.customerId;
+        resolvedBranchId   = branchId || '50cb49d0-0c62-4582-8597-9e3fbae83835';
+        invoiceLines       = lines.map(l => ({ description: l.name, quantity: l.quantity, unitPrice: l.unitPrice, taxRate: l.taxRate }));
+      }
 
       const invoice = await billingApi.issueInvoice({
-        orderId:    orderRes.orderId,
-        customerId: customer.customerId,
-        branchId:   branchId || '50cb49d0-0c62-4582-8597-9e3fbae83835',
+        orderId:    resolvedOrderId,
+        customerId: resolvedCustomerId,
+        branchId:   resolvedBranchId,
         ncfType,
-        lines: lines.map(l => ({
-          description: l.name,
-          quantity:    l.quantity,
-          unitPrice:   l.unitPrice,
-          taxRate:     l.taxRate,
-        })),
+        lines:      invoiceLines,
       });
 
       const payAmount = isPartial
@@ -123,8 +139,9 @@ export function PaymentModal({ onClose, onSuccess }: PaymentModalProps) {
 
       await billingApi.recordPayment(invoice.invoiceId, { amount: payAmount, method });
 
-      clearOrder();
+      if (!orderOverride) clearOrder();
       onSuccess({
+        orderId: resolvedOrderId,
         ncf:           invoice.ncf,
         invoiceNumber: invoice.invoiceNumber,
         change,
@@ -134,9 +151,9 @@ export function PaymentModal({ onClose, onSuccess }: PaymentModalProps) {
         paidAmount:    payAmount,
         isPartial,
         method,
-        customerName:  customerDisplayName(customer),
+        customerName:  orderOverride ? orderOverride.customerId.slice(0, 8) : (customer ? customerDisplayName(customer) : ''),
         issuedAt:      new Date().toISOString(),
-        lines:         linesToReceiptLines(lines),
+        lines:         orderOverride ? [] : linesToReceiptLines(lines),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al procesar el pago');

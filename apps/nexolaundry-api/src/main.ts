@@ -36,6 +36,7 @@ import { createOrdersRouter } from './routes/orders.router.js';
 import { createBillingRouter } from './routes/billing.router.js';
 import { createCashRouter } from './routes/cash.router.js';
 import { createLaundryRouter } from './routes/laundry.router.js';
+import { createBranchesRouter } from './routes/branches.router.js';
 
 const logger: Logger = {
   info:  (msg, meta) => console.log(JSON.stringify({ level: 'info',  msg, ...meta })),
@@ -104,6 +105,7 @@ async function main() {
   app.use('/api/v1/billing',   tenantMw, authMw, createBillingRouter());
   app.use('/api/v1/cash',      tenantMw, authMw, createCashRouter());
   app.use('/api/v1/laundry',   tenantMw, authMw, createLaundryRouter());
+  app.use('/api/v1/branches',  tenantMw, authMw, createBranchesRouter());
 
   app.use(errorMiddleware);
 

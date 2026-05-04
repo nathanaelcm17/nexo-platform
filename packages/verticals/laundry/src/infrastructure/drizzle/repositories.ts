@@ -1,4 +1,4 @@
-import { and, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { WorkOrder, ProductionItem, type WorkOrderStatus } from '../../domain/work-order.js';
@@ -29,6 +29,14 @@ export class DrizzleWorkOrderRepository implements WorkOrderRepository {
     const rows = await this.db.select().from(schema.workOrders)
       .where(eq(schema.workOrders.orderId, orderId)).limit(1);
     return rows[0] ? this.toAggregate(rows[0]) : null;
+  }
+
+  async listActive(): Promise<WorkOrder[]> {
+    const rows = await this.db.select().from(schema.workOrders)
+      .where(inArray(schema.workOrders.status, ['pending', 'in_progress', 'on_hold']))
+      .orderBy(asc(schema.workOrders.slaDeadline), asc(schema.workOrders.createdAt))
+      .limit(200);
+    return rows.map(r => this.toAggregate(r));
   }
 
   async save(workOrder: WorkOrder): Promise<void> {

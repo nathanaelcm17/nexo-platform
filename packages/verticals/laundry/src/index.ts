@@ -46,10 +46,6 @@ interface OrderConfirmedPayload {
   lines: Array<{ catalogItemId: string; quantity: number; unitOfMeasure: string }>;
 }
 
-interface OrderCancelledPayload {
-  customerId: string;
-  reason?: string;
-}
 
 // ---------------------------------------------------------------------------
 // Handler de OrderConfirmed — construye repos con search_path del tenant
@@ -102,6 +98,38 @@ function buildOrderConfirmedHandler(pool: Pool) {
 }
 
 // ---------------------------------------------------------------------------
+// Handler de OrderCancelled — cancela la WorkOrder en la DB
+// ---------------------------------------------------------------------------
+function buildOrderCancelledHandler(pool: Pool) {
+  return async (event: DomainEvent): Promise<void> => {
+    const tenantResult = await pool.query<{ schema_name: string }>(
+      'SELECT schema_name FROM public.tenants WHERE tenant_id = $1 LIMIT 1',
+      [event.tenantId],
+    );
+    const schemaName = tenantResult.rows[0]?.schema_name;
+    if (!schemaName) {
+      console.error(`[laundry] tenant not found for tenantId=${event.tenantId}`);
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query(`SET search_path TO "${schemaName}", public`);
+      const db           = drizzle(client, { schema: laundrySchema });
+      const workOrderRepo = new DrizzleWorkOrderRepository(db);
+      const workOrder    = await workOrderRepo.findByOrderId(event.aggregateId);
+      if (workOrder) {
+        workOrder.cancel();
+        await workOrderRepo.save(workOrder);
+        console.log(JSON.stringify({ level: 'info', msg: '[laundry] WorkOrder cancelled', orderId: event.aggregateId }));
+      }
+    } finally {
+      client.release();
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Factory — crea el vertical con el pool inyectado (para el API)
 // ---------------------------------------------------------------------------
 export function createLaundryVertical(pool: Pool): VerticalDefinition {
@@ -124,16 +152,7 @@ export function createLaundryVertical(pool: Pool): VerticalDefinition {
       },
       {
         eventName: 'OrderCancelled',
-        handler:   async (event: DomainEvent) => {
-          const payload = event.payload as OrderCancelledPayload;
-          console.log(JSON.stringify({
-            level:   'info',
-            msg:     '[laundry] OrderCancelled — cancelling WorkOrder',
-            orderId: event.aggregateId,
-            reason:  payload.reason,
-          }));
-          // TODO: marcar WorkOrder como cancelled en la DB
-        },
+        handler:   buildOrderCancelledHandler(pool),
       },
     ],
 

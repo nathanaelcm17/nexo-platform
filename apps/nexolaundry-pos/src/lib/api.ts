@@ -121,6 +121,26 @@ export const cashApi = {
     apiFetch<{ expectedCash: number; closingBalance: number; difference: number }>(`/api/v1/cash/sessions/${sessionId}/close`, { method: 'POST', body: JSON.stringify(body) }),
 };
 
+// --- Branches ---
+export const branchesApi = {
+  list: () => apiFetch<Branch[]>('/api/v1/branches'),
+  terminals: (branchId: string) => apiFetch<Terminal[]>(`/api/v1/branches/${branchId}/terminals`),
+};
+
+// --- Laundry ---
+export const laundryApi = {
+  workOrders: () => apiFetch<WorkOrderWithItems[]>('/api/v1/laundry/work-orders'),
+  stages:     () => apiFetch<StageProps[]>('/api/v1/laundry/stages'),
+  advanceItem: (itemId: string, body: { toStageId: string; notes?: string; rejected?: boolean }) =>
+    apiFetch(`/api/v1/laundry/production-items/${itemId}/advance`, { method: 'POST', body: JSON.stringify(body) }),
+  orderWorkOrder: (orderId: string) => apiFetch<WorkOrderWithItems>(`/api/v1/laundry/orders/${orderId}/work-order`),
+};
+
+// --- Orders (extend) ---
+export const ordersApiExtra = {
+  deliver: (orderId: string) => apiFetch(`/api/v1/orders/${orderId}/deliver`, { method: 'POST' }),
+};
+
 // ---- Types ----
 
 export interface LoginResult {
@@ -229,4 +249,57 @@ export interface CashSessionSnapshot {
   status: string;
   openedAt: string;
   openingBalance: number;
+}
+
+export interface Branch {
+  branch_id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  active: boolean;
+}
+
+export interface Terminal {
+  terminal_id: string;
+  branch_id: string;
+  name: string;
+  device_fingerprint?: string;
+  active: boolean;
+}
+
+export interface StageProps {
+  stageId: string;
+  name: string;
+  order: number;
+  estimatedDurationMin?: number;
+  requiresQualityCheck: boolean;
+  isInitial: boolean;
+  isFinal: boolean;
+  active: boolean;
+}
+
+export interface ProductionItemSnap {
+  productionItemId: string;
+  workOrderId: string;
+  orderLineId?: string;
+  barcode: string;
+  description: string;
+  currentStageId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkOrderWithItems {
+  workOrderId: string;
+  orderId: string;
+  branchId: string;
+  priority: string;
+  status: string;
+  slaDeadline?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  items: ProductionItemSnap[];
 }

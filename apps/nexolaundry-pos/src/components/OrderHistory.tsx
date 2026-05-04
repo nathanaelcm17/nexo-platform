@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, type OrderSummary } from '../lib/api';
+import { ordersApi, ordersApiExtra, type OrderSummary } from '../lib/api';
+import { PaymentModal, type SaleReceipt } from './PaymentModal';
 
 const STATUS_LABEL: Record<string, string> = {
   draft:          'Borrador',
@@ -55,12 +56,19 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
 }
 
+const METHOD_LABEL: Record<string, string> = {
+  cash: 'Efectivo', card_manual: 'Tarjeta', transfer: 'Transferencia', credit: 'Crédito',
+};
+
 export function OrderHistory() {
+
   const [statusFilter, setStatusFilter] = useState('');
   const [cancelTarget, setCancelTarget] = useState<OrderSummary | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling,   setCancelling]   = useState(false);
   const [cancelError,  setCancelError]  = useState('');
+  const [payingOrder,  setPayingOrder]  = useState<OrderSummary | null>(null);
+  const [receipt,      setReceipt]      = useState<SaleReceipt | null>(null);
   const qc = useQueryClient();
 
   const { data: orders = [], isFetching, refetch } = useQuery({
@@ -145,18 +153,77 @@ export function OrderHistory() {
                 </div>
               </div>
 
-              {CANCELLABLE.has(order.status) && (
-                <button
-                  onClick={() => { setCancelTarget(order); setCancelReason(''); setCancelError(''); }}
-                  className="text-xs text-red-400 border border-red-700/50 hover:border-red-500 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
-                >
-                  Cancelar
-                </button>
-              )}
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                {order.status === 'ready' && order.paymentStatus !== 'paid' && (
+                  <button
+                    onClick={() => setPayingOrder(order)}
+                    className="text-xs bg-brand text-slate-900 font-semibold px-3 py-1.5 rounded-lg hover:bg-sky-400 transition-colors"
+                  >
+                    Cobrar y entregar
+                  </button>
+                )}
+                {CANCELLABLE.has(order.status) && (
+                  <button
+                    onClick={() => { setCancelTarget(order); setCancelReason(''); setCancelError(''); }}
+                    className="text-xs text-red-400 border border-red-700/50 hover:border-red-500 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* PaymentModal para órdenes ready */}
+      {payingOrder && (
+        <PaymentModal
+          orderOverride={payingOrder}
+          onClose={() => setPayingOrder(null)}
+          onSuccess={async (r) => {
+            setPayingOrder(null);
+            setReceipt(r);
+            await ordersApiExtra.deliver(r.orderId!).catch(() => {});
+            qc.invalidateQueries({ queryKey: ['orders'] });
+          }}
+        />
+      )}
+
+      {/* Mini receipt tras cobro */}
+      {receipt && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-sm text-center space-y-4">
+            <div className="text-4xl">✅</div>
+            <h2 className="text-xl font-bold text-white">¡Entregado!</h2>
+            <div className="bg-slate-900 rounded-xl p-4 text-sm text-left space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Factura</span>
+                <span className="text-white font-medium">{receipt.invoiceNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">NCF</span>
+                <span className="text-brand font-mono">{receipt.ncf}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Total</span>
+                <span className="text-white">RD$ {receipt.total.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Pago ({METHOD_LABEL[receipt.method] ?? receipt.method})</span>
+                <span className="text-white">RD$ {receipt.paidAmount.toFixed(2)}</span>
+              </div>
+              {receipt.change > 0 && (
+                <div className="flex justify-between border-t border-slate-700 pt-2">
+                  <span className="text-slate-400">Cambio</span>
+                  <span className="text-green-400 font-bold">RD$ {receipt.change.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            <button onClick={() => setReceipt(null)} className="btn-primary w-full py-2.5">Cerrar</button>
+          </div>
+        </div>
+      )}
 
       {/* Cancel modal */}
       {cancelTarget && (

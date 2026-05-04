@@ -26,12 +26,20 @@ export function createLaundryRouter(): Router {
     } catch (err) { next(err); }
   });
 
-  // GET /api/v1/laundry/work-orders — work orders activas (pendientes + en progreso)
-  router.get('/work-orders', async (_req, res, next) => {
+  // GET /api/v1/laundry/work-orders — dashboard de producción (work orders activas con items)
+  router.get('/work-orders', async (req, res, next) => {
     try {
-      // Consulta directa para el dashboard de operaciones
-      // Devuelve work orders con sus production items
-      res.json({ message: 'Use GET /work-orders/:id for details' });
+      const workOrderRepo      = new DrizzleWorkOrderRepository(req.db!);
+      const productionItemRepo = new DrizzleProductionItemRepository(req.db!);
+
+      const workOrders = await workOrderRepo.listActive();
+      const result     = await Promise.all(
+        workOrders.map(async (wo) => {
+          const items = await productionItemRepo.findByWorkOrder(wo.workOrderId);
+          return { ...wo.toSnapshot(), items: items.map(i => i.toSnapshot()) };
+        }),
+      );
+      res.json(result);
     } catch (err) { next(err); }
   });
 

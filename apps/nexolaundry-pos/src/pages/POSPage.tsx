@@ -9,12 +9,10 @@ import { OrderSidebar }      from '../components/OrderSidebar';
 import { PaymentModal, type SaleReceipt } from '../components/PaymentModal';
 import { CashModal }         from '../components/CashModal';
 import { CloseSessionModal } from '../components/CloseSessionModal';
-import { OrderHistory }      from '../components/OrderHistory';
+import { OrderHistory }          from '../components/OrderHistory';
+import { ProductionDashboard }   from '../components/ProductionDashboard';
 
-const DEMO_BRANCH_ID   = '50cb49d0-0c62-4582-8597-9e3fbae83835';
-const DEMO_TERMINAL_ID = '6157a250-2bc1-4fa0-b6b9-3755ce6896ee';
-
-type ActiveTab = 'sale' | 'orders';
+type ActiveTab = 'sale' | 'orders' | 'production';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'Efectivo', card_manual: 'Tarjeta', transfer: 'Transferencia', credit: 'Crédito',
@@ -96,10 +94,7 @@ export function POSPage() {
     clearAuth:    s.clearAuth,
     refreshToken: s.refreshToken,
   }));
-  const { sessionId, setBranchId } = usePosStore(s => ({
-    sessionId:  s.sessionId,
-    setBranchId: s.setBranchId,
-  }));
+  const { sessionId } = usePosStore(s => ({ sessionId: s.sessionId }));
 
   const [activeTab,        setActiveTab]        = useState<ActiveTab>('sale');
   const [showPayment,      setShowPayment]      = useState(false);
@@ -114,9 +109,7 @@ export function POSPage() {
     navigate('/login', { replace: true });
   }
 
-  function handleCashOpened(sId: string) {
-    setBranchId(DEMO_BRANCH_ID);
-    usePosStore.getState().setSession(sId, DEMO_TERMINAL_ID);
+  function handleCashOpened(_sId: string, _branchId: string) {
     setShowCash(false);
   }
 
@@ -136,26 +129,17 @@ export function POSPage() {
           </div>
 
           <div className="flex gap-1 bg-slate-700/50 rounded-lg p-1">
-            <button
-              onClick={() => setActiveTab('sale')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'sale'
-                  ? 'bg-slate-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Nueva venta
-            </button>
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'orders'
-                  ? 'bg-slate-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Órdenes
-            </button>
+            {(['sale', 'orders', 'production'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === tab ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {tab === 'sale' ? 'Nueva venta' : tab === 'orders' ? 'Órdenes' : 'Producción'}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -199,13 +183,15 @@ export function POSPage() {
           </main>
           <OrderSidebar onConfirm={() => setShowPayment(true)} confirming={confirming} />
         </div>
-      ) : (
+      ) : activeTab === 'orders' ? (
         <OrderHistory />
+      ) : (
+        <ProductionDashboard />
       )}
 
       {/* Modals */}
       {showCash && (
-        <CashModal branchId={DEMO_BRANCH_ID} onOpened={handleCashOpened} />
+        <CashModal onOpened={handleCashOpened} />
       )}
 
       {showCloseSession && (

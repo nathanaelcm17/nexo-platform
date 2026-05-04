@@ -8,7 +8,9 @@ interface CloseSessionModalProps {
   onCancel: () => void;
 }
 
-const fmt = (n: number) => `RD$ ${n.toFixed(2)}`;
+const DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 25, 10];
+
+const fmt = (n: number) => `RD$ ${n.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`;
 
 export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps) {
   const { sessionId, terminalId, clearSession } = usePosStore(s => ({
@@ -17,7 +19,8 @@ export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps
     clearSession: s.clearSession,
   }));
 
-  const [closing, setClosing] = useState('');
+  const [denoms,  setDenoms]  = useState<Record<string, number>>({});
+  const [coins,   setCoins]   = useState('');
   const [reason,  setReason]  = useState('');
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -29,15 +32,31 @@ export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps
     enabled:  !!terminalId,
   });
 
+  const closingBalance = DENOMINATIONS.reduce((sum, d) => sum + d * (denoms[String(d)] || 0), 0)
+    + (parseFloat(coins) || 0);
+
+  function setDenom(d: number, val: string) {
+    const n = parseInt(val) || 0;
+    setDenoms(prev => ({ ...prev, [String(d)]: n }));
+  }
+
+  // Pre-calcular diferencia en tiempo real
+  const expectedPreview = session ? session.openingBalance : null;
+  const diffPreview = expectedPreview !== null ? closingBalance - expectedPreview : null;
+
   async function handleClose(e: React.FormEvent) {
     e.preventDefault();
-    const balance = parseFloat(closing);
-    if (isNaN(balance) || balance < 0) { setError('Ingresa un monto válido'); return; }
+    if (closingBalance < 0) { setError('Ingresa un monto válido'); return; }
     setError('');
     setLoading(true);
+
+    const closingDenominations: Record<string, number> = {};
+    DENOMINATIONS.forEach(d => { if (denoms[String(d)] > 0) closingDenominations[String(d)] = denoms[String(d)]; });
+    if (parseFloat(coins) > 0) closingDenominations['coins'] = parseFloat(coins);
+
     try {
       const res = await cashApi.closeSession(sessionId!, {
-        closingBalance:   balance,
+        closingBalance,
         differenceReason: reason.trim() || undefined,
       });
       setResult(res);
@@ -83,8 +102,8 @@ export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-sm space-y-5">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="card w-full max-w-md space-y-5 my-4">
         <div className="text-center">
           <div className="text-3xl mb-2">🔒</div>
           <h2 className="text-xl font-bold text-white">Cierre de caja</h2>
@@ -96,20 +115,61 @@ export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps
         </div>
 
         <form onSubmit={handleClose} className="space-y-4">
+          {/* Denomination grid */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Monto contado en caja (RD$)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input-field text-lg"
-              placeholder="0.00"
-              value={closing}
-              onChange={e => setClosing(e.target.value)}
-              required
-              autoFocus
-            />
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Cuenta el efectivo por denominación
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {DENOMINATIONS.map(d => (
+                <div key={d} className="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2">
+                  <span className="text-slate-400 text-sm w-14 flex-shrink-0">RD$ {d}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="w-full bg-transparent text-white text-sm text-right outline-none placeholder-slate-600"
+                    placeholder="0"
+                    value={denoms[String(d)] || ''}
+                    onChange={e => setDenom(d, e.target.value)}
+                  />
+                  <span className="text-slate-600 text-xs flex-shrink-0">uds</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2 col-span-2">
+                <span className="text-slate-400 text-sm w-24 flex-shrink-0">Monedas</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full bg-transparent text-white text-sm text-right outline-none placeholder-slate-600"
+                  placeholder="0.00"
+                  value={coins}
+                  onChange={e => setCoins(e.target.value)}
+                />
+                <span className="text-slate-600 text-xs flex-shrink-0">RD$</span>
+              </div>
+            </div>
           </div>
+
+          {/* Live totals */}
+          <div className="bg-slate-900 rounded-xl px-4 py-3 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Total contado</span>
+              <span className={`font-bold ${closingBalance > 0 ? 'text-white' : 'text-slate-500'}`}>
+                {fmt(closingBalance)}
+              </span>
+            </div>
+            {diffPreview !== null && closingBalance > 0 && (
+              <div className="flex justify-between border-t border-slate-700 pt-2">
+                <span className="text-slate-400">Diferencia estimada</span>
+                <span className={`font-semibold ${diffPreview === 0 ? 'text-green-400' : diffPreview > 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                  {diffPreview >= 0 ? '+' : ''}{fmt(diffPreview)}
+                </span>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
               Razón de diferencia <span className="text-slate-500">(opcional)</span>
@@ -133,7 +193,7 @@ export function CloseSessionModal({ onClosed, onCancel }: CloseSessionModalProps
             <button type="button" onClick={onCancel} className="btn-ghost flex-1" disabled={loading}>
               Cancelar
             </button>
-            <button type="submit" disabled={loading} className="btn-danger flex-1">
+            <button type="submit" disabled={loading || closingBalance < 0} className="btn-danger flex-1">
               {loading ? 'Cerrando…' : 'Cerrar caja'}
             </button>
           </div>

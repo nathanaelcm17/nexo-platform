@@ -25,6 +25,7 @@ export interface StageTransitionProps {
 export interface WorkOrderRepository {
   findById(id: string): Promise<WorkOrder | null>;
   findByOrderId(orderId: string): Promise<WorkOrder | null>;
+  listActive(): Promise<WorkOrder[]>;
   save(workOrder: WorkOrder): Promise<void>;
 }
 
