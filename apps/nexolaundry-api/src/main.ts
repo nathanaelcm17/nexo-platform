@@ -51,11 +51,11 @@ async function main() {
     max: Number(process.env.DATABASE_POOL_MAX ?? 10),
   });
 
-  const redis = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-  });
+  const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
-  const eventBus = new BullMqEventBus({ host: redis.options.host, port: redis.options.port });
+  const redis = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+
+  const eventBus = new BullMqEventBus(REDIS_URL);
 
   const ctx: PlatformContext = { coreVersion: '0.1.0', eventBus, logger };
   const platform = new Platform(ctx);

@@ -58,7 +58,7 @@ export class DrizzleOrderRepository implements OrderRepository {
           readyAt:         s.readyAt ?? null,
           deliveredAt:     s.deliveredAt ?? null,
           cancelledAt:     s.cancelledAt ?? null,
-          extensions:      JSON.stringify(s.extensions),
+          extensions:      s.extensions,
           createdAt:       s.createdAt,
           updatedAt:       s.updatedAt,
         })
@@ -80,7 +80,7 @@ export class DrizzleOrderRepository implements OrderRepository {
             readyAt:         s.readyAt ?? null,
             deliveredAt:     s.deliveredAt ?? null,
             cancelledAt:     s.cancelledAt ?? null,
-            extensions:      JSON.stringify(s.extensions),
+            extensions:      s.extensions,
             updatedAt:       s.updatedAt,
           },
         });
@@ -100,7 +100,7 @@ export class DrizzleOrderRepository implements OrderRepository {
             discount:      String(l.discount),
             taxRate:       String(l.taxRate),
             lineTotal:     String(l.lineTotal),
-            extensions:    JSON.stringify(l.extensions),
+            extensions:    l.extensions,
           })),
         );
       }
@@ -186,7 +186,7 @@ export class DrizzleOrderRepository implements OrderRepository {
       readyAt:         row.readyAt ?? undefined,
       deliveredAt:     row.deliveredAt ?? undefined,
       cancelledAt:     row.cancelledAt ?? undefined,
-      extensions:      JSON.parse(row.extensions ?? '{}'),
+      extensions:      (row.extensions as Record<string, unknown>) ?? {},
       lines: lineRows.map(l => ({
         lineId:        l.lineId,
         catalogItemId: l.catalogItemId,
@@ -197,7 +197,7 @@ export class DrizzleOrderRepository implements OrderRepository {
         discount:      Number(l.discount),
         taxRate:       Number(l.taxRate),
         lineTotal:     Number(l.lineTotal),
-        extensions:    JSON.parse(l.extensions ?? '{}'),
+        extensions:    (l.extensions as Record<string, unknown>) ?? {},
       })),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

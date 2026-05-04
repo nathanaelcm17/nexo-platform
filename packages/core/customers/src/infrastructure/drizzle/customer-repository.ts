@@ -87,7 +87,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
         creditLimit:    String(s.creditLimit),
         status:         s.status,
         notes:          s.notes ?? null,
-        extensions:     JSON.stringify(s.extensions),
+        extensions:     s.extensions,
         createdAt:      s.createdAt,
         updatedAt:      s.updatedAt,
       })
@@ -102,7 +102,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
           creditLimit:    String(s.creditLimit),
           status:         s.status,
           notes:          s.notes ?? null,
-          extensions:     JSON.stringify(s.extensions),
+          extensions:     s.extensions,
           updatedAt:      s.updatedAt,
         },
       });
@@ -131,7 +131,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
       creditLimit:    Number(row.creditLimit),
       status:         row.status as CustomerStatus,
       notes:          row.notes ?? undefined,
-      extensions:     JSON.parse(row.extensions ?? '{}'),
+      extensions:     (row.extensions as Record<string, unknown>) ?? {},
       createdAt:      row.createdAt,
       updatedAt:      row.updatedAt,
     });

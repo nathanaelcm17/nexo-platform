@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { CustomerSnapshot, CatalogItemSnapshot } from '../lib/api';
 
 export interface DraftLine {
@@ -49,7 +50,9 @@ function basePrice(item: CatalogItemSnapshot): number {
   return 0;
 }
 
-export const usePosStore = create<PosState>()((set, get) => ({
+export const usePosStore = create<PosState>()(
+  persist(
+    (set, get) => ({
   customer:   null,
   lines:      [],
   branchId:   '',
@@ -118,4 +121,10 @@ export const usePosStore = create<PosState>()((set, get) => ({
     const disc = get().lines.reduce((s, l) => s + l.discount, 0);
     return Math.round((st - disc + it) * 100) / 100;
   },
-}));
+    }),
+    {
+      name:    'nexo-pos-session',
+      partialize: (s) => ({ sessionId: s.sessionId, terminalId: s.terminalId, branchId: s.branchId }),
+    },
+  ),
+);

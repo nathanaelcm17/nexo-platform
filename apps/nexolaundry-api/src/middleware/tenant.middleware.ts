@@ -64,9 +64,11 @@ export function tenantMiddleware(pool: Pool) {
       (req as any)[DB_CLIENT_KEY] = client;
       req.db = drizzle(client);
 
-      // Liberar el client al finalizar el response
-      res.on('finish', () => client?.release());
-      res.on('close',  () => client?.release());
+      // Liberar el client una sola vez (finish y close ambos disparan; el guard evita doble release)
+      let released = false;
+      const release = () => { if (!released) { released = true; client?.release(); } };
+      res.on('finish', release);
+      res.on('close',  release);
 
       next();
     } catch (err) {

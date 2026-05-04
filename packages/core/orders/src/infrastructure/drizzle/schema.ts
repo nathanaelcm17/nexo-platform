@@ -1,4 +1,4 @@
-import { numeric, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { json, numeric, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const orderStatusEnum   = pgEnum('order_status',   ['draft', 'confirmed', 'in_fulfillment', 'ready', 'delivered', 'cancelled']);
 export const paymentStatusEnum = pgEnum('payment_status', ['unpaid', 'partial', 'paid']);
@@ -28,7 +28,7 @@ export const orders = pgTable('orders', {
   readyAt:         timestamp('ready_at',      { withTimezone: true, mode: 'date' }),
   deliveredAt:     timestamp('delivered_at',  { withTimezone: true, mode: 'date' }),
   cancelledAt:     timestamp('cancelled_at',  { withTimezone: true, mode: 'date' }),
-  extensions:      text('extensions').notNull().default('{}'),
+  extensions:      json('extensions').notNull(),
   createdAt:       timestamp('created_at',    { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt:       timestamp('updated_at',    { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
@@ -44,7 +44,7 @@ export const orderLines = pgTable('order_lines', {
   discount:      numeric('discount',   { precision: 12, scale: 2 }).notNull().default('0'),
   taxRate:       numeric('tax_rate',   { precision: 5,  scale: 2 }).notNull(),
   lineTotal:     numeric('line_total', { precision: 12, scale: 2 }).notNull(),
-  extensions:    text('extensions').notNull().default('{}'),
+  extensions:    json('extensions').notNull(),
   createdAt:     timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 

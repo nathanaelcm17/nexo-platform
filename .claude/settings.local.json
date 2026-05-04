@@ -29,7 +29,12 @@
       "Bash(timeout 10 pnpm --filter @nexo/app-nexolaundry-api dev)",
       "Bash(pnpm --filter @nexo/app-nexolaundry-api dev)",
       "Bash(curl -s -X POST http://localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@demo.com\",\"password\":\"admin123\",\"tenantSlug\":\"demo\"}')",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(psql -h localhost -U nexo -d nexolaundry -c ' *)",
+      "PowerShell($env:PGPASSWORD = \"nexo\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U nexo -d nexolaundry -c \"SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'tenant_demo' AND table_name IN \\('catalog_items', 'cash_sessions'\\) AND column_name IN \\('pricing_model','opening_denominations','closing_denominations','fulfillment_hints','extensions'\\) ORDER BY table_name, column_name;\" 2>&1)",
+      "PowerShell($env:PGPASSWORD = \"nexo\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U nexo -d nexolaundry -c \"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = 'tenant_demo' AND data_type IN \\('jsonb','json'\\) ORDER BY table_name, column_name;\" 2>&1)",
+      "Bash(pkill -f \"tsx watch src/main.ts\")",
+      "PowerShell($env:PGPASSWORD = \"nexo\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U nexo -d nexolaundry -c \"UPDATE tenant_demo.cash_sessions SET status = 'closed', closed_at = NOW\\(\\), closing_balance = opening_balance, closed_by = cashier_id WHERE status = 'open' RETURNING session_id, terminal_id, status;\" 2>&1)"
     ]
   }
 }

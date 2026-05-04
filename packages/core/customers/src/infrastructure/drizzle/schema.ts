@@ -1,5 +1,6 @@
 import {
   boolean,
+  json,
   numeric,
   pgEnum,
   pgTable,
@@ -27,7 +28,7 @@ export const customers = pgTable('customers', {
   creditLimit:    numeric('credit_limit', { precision: 12, scale: 2 }).notNull().default('0'),
   status:         customerStatusEnum('status').notNull().default('active'),
   notes:          text('notes'),
-  extensions:     text('extensions').notNull().default('{}'), // stored as JSON string
+  extensions:     json('extensions').notNull(),
   createdAt:      timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt:      timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });

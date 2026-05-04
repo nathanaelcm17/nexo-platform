@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill -f \"tsx watch\")",
+      "Bash(pkill -f vite)",
+      "Bash(curl -s http://localhost:5175)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -I -X OPTIONS http://localhost:3000/api/v1/auth/login -H 'Origin: http://localhost:5175' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: Content-Type')",
+      "PowerShell($env:PGPASSWORD = \"nexo\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U nexo -d nexolaundry -c \"UPDATE tenant_demo.cash_sessions SET status = 'closed', closed_at = NOW\\(\\), closing_balance = opening_balance, expected_cash = opening_balance, difference = 0, closed_by = cashier_id WHERE status = 'open' RETURNING session_id, status, opened_at;\" 2>&1)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { $processId = $_.OwningProcess; Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue; Write-Output \"Terminado PID $processId\" })",
+      "Bash(node -e \"const pkg = require\\('c:/Users/n.corporan/Desktop/JS Projects/monorepo/node_modules/.pnpm/bullmq@5.51.1/node_modules/bullmq/package.json'\\); console.log\\('BullMQ:', pkg.version\\)\")"
+    ]
+  }
+}

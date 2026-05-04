@@ -9,26 +9,51 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(
-  path: string,
-  options: RequestInit & { skipAuth?: boolean } = {},
-): Promise<T> {
-  const { accessToken, tenantSlug } = useAuthStore.getState();
-  const { skipAuth, ...init } = options;
-
+async function doFetch(path: string, token: string | null, tenantSlug: string | null, options: RequestInit): Promise<Response> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+  if (token)      headers['Authorization'] = `Bearer ${token}`;
+  if (tenantSlug) headers['X-Tenant-Slug'] = tenantSlug;
+  return fetch(`${BASE}${path}`, { ...options, headers });
+}
 
-  if (!skipAuth && accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+async function tryRefresh(): Promise<string | null> {
+  const { refreshToken, tenant, user, setAuth, clearAuth } = useAuthStore.getState();
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${BASE}/api/v1/auth/refresh`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) { clearAuth(); return null; }
+    const data: LoginResult = await res.json();
+    setAuth({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: user ?? data.user, tenant: tenant ?? data.tenant });
+    return data.accessToken;
+  } catch {
+    clearAuth();
+    return null;
   }
-  if (tenantSlug) {
-    headers['X-Tenant-Slug'] = tenantSlug;
-  }
+}
 
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit & { skipAuth?: boolean } = {},
+): Promise<T> {
+  const { skipAuth, ...init } = options;
+  const { accessToken, tenantSlug } = useAuthStore.getState();
+
+  let res = await doFetch(path, skipAuth ? null : accessToken, tenantSlug, init);
+
+  // Token expirado — intentar refresh y reintentar una vez
+  if (res.status === 401 && !skipAuth) {
+    const newToken = await tryRefresh();
+    if (newToken) {
+      res = await doFetch(path, newToken, useAuthStore.getState().tenantSlug, init);
+    }
+  }
 
   if (res.status === 204) return undefined as T;
 
@@ -47,6 +72,12 @@ export const authApi = {
     apiFetch<LoginResult>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password, tenantSlug }),
+      skipAuth: true,
+    }),
+  refresh: (refreshToken: string) =>
+    apiFetch<LoginResult>('/api/v1/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
       skipAuth: true,
     }),
   logout: (refreshToken: string) =>
@@ -125,13 +156,19 @@ export interface CatalogItemSnapshot {
 }
 
 export interface OrderSummary {
-  orderId: string;
-  orderNumber: string;
-  customerId: string;
-  status: string;
-  total: number;
+  orderId:       string;
+  orderNumber:   string;
+  customerId:    string;
+  branchId:      string;
+  status:        string;
+  priority:      string;
+  total:         number;
+  paidAmount:    number;
   paymentStatus: string;
-  receivedAt: string;
+  receivedAt:    string;
+  confirmedAt?:  string;
+  readyAt?:      string;
+  promisedAt?:   string;
 }
 
 export interface CreateOrderBody {

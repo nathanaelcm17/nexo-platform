@@ -1,4 +1,4 @@
-import { boolean, numeric, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, json, numeric, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const cashSessionStatusEnum = pgEnum('cash_session_status',  ['open', 'closing', 'closed', 'force_closed']);
 export const cashMovementTypeEnum  = pgEnum('cash_movement_type',   ['sale', 'refund', 'cash_in', 'cash_out', 'drop', 'opening_float', 'adjustment']);
@@ -22,10 +22,10 @@ export const cashSessions = pgTable('cash_sessions', {
   status:                 cashSessionStatusEnum('status').notNull().default('open'),
   openedAt:               timestamp('opened_at',  { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   openingBalance:         numeric('opening_balance',   { precision: 12, scale: 2 }).notNull(),
-  openingDenominations:   text('opening_denominations').notNull().default('{}'),
+  openingDenominations:   json('opening_denominations').notNull(),
   closedAt:               timestamp('closed_at',   { withTimezone: true, mode: 'date' }),
   closingBalance:         numeric('closing_balance',   { precision: 12, scale: 2 }),
-  closingDenominations:   text('closing_denominations'),
+  closingDenominations:   json('closing_denominations'),
   expectedCash:           numeric('expected_cash',     { precision: 12, scale: 2 }),
   difference:             numeric('difference',        { precision: 12, scale: 2 }),
   differenceReason:       text('difference_reason'),
