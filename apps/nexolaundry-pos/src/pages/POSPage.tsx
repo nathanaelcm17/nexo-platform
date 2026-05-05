@@ -11,8 +11,9 @@ import { CashModal }         from '../components/CashModal';
 import { CloseSessionModal } from '../components/CloseSessionModal';
 import { OrderHistory }          from '../components/OrderHistory';
 import { ProductionDashboard }   from '../components/ProductionDashboard';
+import { HomePage }              from './HomePage';
 
-type ActiveTab = 'sale' | 'orders' | 'production';
+type ActiveTab = 'home' | 'sale' | 'orders' | 'production';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'Efectivo', card_manual: 'Tarjeta', transfer: 'Transferencia', credit: 'Crédito',
@@ -96,7 +97,7 @@ export function POSPage() {
   }));
   const { sessionId } = usePosStore(s => ({ sessionId: s.sessionId }));
 
-  const [activeTab,        setActiveTab]        = useState<ActiveTab>('sale');
+  const [activeTab,        setActiveTab]        = useState<ActiveTab>('home');
   const [showPayment,      setShowPayment]      = useState(false);
   const [showCash,         setShowCash]         = useState(!sessionId);
   const [showCloseSession, setShowCloseSession] = useState(false);
@@ -129,15 +130,20 @@ export function POSPage() {
           </div>
 
           <div className="flex gap-1 bg-slate-700/50 rounded-lg p-1">
-            {(['sale', 'orders', 'production'] as const).map(tab => (
+            {([
+              { id: 'home',       label: '🏠 Inicio'      },
+              { id: 'sale',       label: '🛒 Nueva venta' },
+              { id: 'orders',     label: '📋 Órdenes'     },
+              { id: 'production', label: '🏭 Producción'  },
+            ] as const).map(tab => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === tab ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                  activeTab === tab.id ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                {tab === 'sale' ? 'Nueva venta' : tab === 'orders' ? 'Órdenes' : 'Producción'}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -175,7 +181,13 @@ export function POSPage() {
       </header>
 
       {/* Body */}
-      {activeTab === 'sale' ? (
+      {activeTab === 'home' ? (
+        <HomePage
+          onNewOrder={()  => setActiveTab('sale')}
+          onGoToOrders={() => setActiveTab('orders')}
+          onGoToProd={()  => setActiveTab('production')}
+        />
+      ) : activeTab === 'sale' ? (
         <div className="flex flex-1 min-h-0">
           <main className="flex-1 flex flex-col p-4 gap-4 min-w-0 overflow-hidden">
             <CustomerSearch />

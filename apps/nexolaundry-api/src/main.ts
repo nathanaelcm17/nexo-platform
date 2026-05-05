@@ -112,6 +112,38 @@ async function main() {
   const port = Number(process.env.PORT ?? 3000);
   const server = app.listen(port, () => logger.info(`NexoLaundry API listening on :${port}`));
 
+  // Repair: sync order statuses with their work_order statuses (idempotent, runs at startup)
+  pool.connect().then(async (client) => {
+    try {
+      const { rows: tenants } = await client.query<{ schema_name: string }>(
+        `SELECT schema_name FROM tenants`,
+      );
+      for (const { schema_name: s } of tenants) {
+        await client.query(`
+          UPDATE ${s}.orders o
+          SET    status = 'in_fulfillment', updated_at = NOW()
+          FROM   ${s}.work_orders wo
+          WHERE  wo.order_id = o.order_id
+            AND  wo.status   = 'in_progress'
+            AND  o.status    = 'confirmed'
+        `);
+        await client.query(`
+          UPDATE ${s}.orders o
+          SET    status = 'ready', ready_at = NOW(), updated_at = NOW()
+          FROM   ${s}.work_orders wo
+          WHERE  wo.order_id = o.order_id
+            AND  wo.status   = 'completed'
+            AND  o.status    IN ('confirmed', 'in_fulfillment')
+        `);
+      }
+      logger.info('Order status repair completed');
+    } catch (err) {
+      logger.warn('Order status repair failed (non-fatal)', { err: String(err) });
+    } finally {
+      client.release();
+    }
+  }).catch(() => {/* pool already logged */});
+
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down`);
     server.close(async () => {

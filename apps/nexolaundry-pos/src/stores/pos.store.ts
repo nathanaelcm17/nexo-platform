@@ -14,17 +14,25 @@ export interface DraftLine {
   lineTotal: number;
 }
 
+export type OrderPriority = 'normal' | 'express' | 'same_day';
+
 interface PosState {
-  customer:     CustomerSnapshot | null;
-  lines:        DraftLine[];
-  branchId:     string;
-  sessionId:    string | null;
-  terminalId:   string | null;
+  customer:    CustomerSnapshot | null;
+  lines:       DraftLine[];
+  branchId:    string;
+  sessionId:   string | null;
+  terminalId:  string | null;
+  priority:    OrderPriority;
+  promisedAt:  string;
+  notes:       string;
 
   setCustomer:  (c: CustomerSnapshot | null) => void;
   setBranchId:  (id: string) => void;
   setSession:   (sessionId: string, terminalId: string) => void;
   clearSession: () => void;
+  setPriority:  (p: OrderPriority) => void;
+  setPromisedAt:(v: string) => void;
+  setNotes:     (v: string) => void;
 
   addItem:      (item: CatalogItemSnapshot) => void;
   removeItem:   (catalogItemId: string) => void;
@@ -58,11 +66,17 @@ export const usePosStore = create<PosState>()(
   branchId:   '',
   sessionId:  null,
   terminalId: null,
+  priority:   'normal',
+  promisedAt: '',
+  notes:      '',
 
   setCustomer:  (c) => set({ customer: c }),
   setBranchId:  (id) => set({ branchId: id }),
   setSession:   (sessionId, terminalId) => set({ sessionId, terminalId }),
   clearSession: () => set({ sessionId: null, terminalId: null }),
+  setPriority:  (p) => set({ priority: p }),
+  setPromisedAt: (v) => set({ promisedAt: v }),
+  setNotes:     (v) => set({ notes: v }),
 
   addItem: (item) => {
     const price = basePrice(item);
@@ -108,7 +122,7 @@ export const usePosStore = create<PosState>()(
       }),
   })),
 
-  clearOrder: () => set({ customer: null, lines: [] }),
+  clearOrder: () => set({ customer: null, lines: [], priority: 'normal', promisedAt: '', notes: '' }),
 
   subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
   itbis:    () => get().lines.reduce((s, l) => {

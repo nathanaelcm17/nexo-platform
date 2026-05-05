@@ -19,7 +19,7 @@ export class AdvanceStageUseCase {
     private readonly stages: StageRepository,
   ) {}
 
-  async execute(input: AdvanceStageInput): Promise<void> {
+  async execute(input: AdvanceStageInput): Promise<{ workOrderCompleted: boolean; workOrderStarted: boolean; orderId: string }> {
     const item = await this.productionItems.findById(input.productionItemId);
     if (!item) throw new NotFoundError('ProductionItem', input.productionItemId);
 
@@ -29,35 +29,47 @@ export class AdvanceStageUseCase {
 
     const fromStageId = item.currentStageId;
 
-    // Registrar transición
     await this.productionItems.saveTransition({
-      transitionId:    randomUUID(),
+      transitionId:     randomUUID(),
       productionItemId: item.productionItemId,
       fromStageId,
-      toStageId:       input.toStageId,
-      performedBy:     input.performedBy,
-      rejected:        input.rejected ?? false,
-      notes:           input.notes,
-      occurredAt:      new Date(),
+      toStageId:        input.toStageId,
+      performedBy:      input.performedBy,
+      rejected:         input.rejected ?? false,
+      notes:            input.notes,
+      occurredAt:       new Date(),
     });
 
-    // Avanzar el item
     item.advanceStage(input.toStageId);
     await this.productionItems.save(item);
 
-    // Si llegó a la etapa final, verificar si toda la work order está completa
+    // Always load the work order to manage its lifecycle
+    const workOrder = await this.workOrders.findById(item.workOrderId);
+    if (!workOrder) throw new NotFoundError('WorkOrder', item.workOrderId);
+
+    const orderId = workOrder.orderId;
+    let workOrderStarted = false;
+    let workOrderCompleted = false;
+
+    // Start work order on the first item advance
+    if (workOrder.status === 'pending') {
+      workOrder.start();
+      await this.workOrders.save(workOrder);
+      workOrderStarted = true;
+    }
+
     if (toStage.isFinal) {
-      const workOrder = await this.workOrders.findById(item.workOrderId);
-      if (workOrder) {
-        const { total, completed } = await this.productionItems.countFinalStageItems(
-          item.workOrderId,
-          input.toStageId,
-        );
-        if (completed >= total) {
-          workOrder.complete();
-          await this.workOrders.save(workOrder);
-        }
+      const { total, completed } = await this.productionItems.countFinalStageItems(
+        item.workOrderId,
+        input.toStageId,
+      );
+      if (completed >= total) {
+        workOrder.complete();
+        await this.workOrders.save(workOrder);
+        workOrderCompleted = true;
       }
     }
+
+    return { workOrderCompleted, workOrderStarted, orderId };
   }
 }

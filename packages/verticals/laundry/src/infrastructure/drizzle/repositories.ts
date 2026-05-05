@@ -136,6 +136,43 @@ export class DrizzleProductionItemRepository implements ProductionItemRepository
     });
   }
 
+  async listTransitionsByItem(productionItemId: string): Promise<StageTransitionProps[]> {
+    const rows = await this.db.select().from(schema.stageTransitions)
+      .where(eq(schema.stageTransitions.productionItemId, productionItemId))
+      .orderBy(asc(schema.stageTransitions.occurredAt));
+    return rows.map(r => ({
+      transitionId:     r.transitionId,
+      productionItemId: r.productionItemId,
+      fromStageId:      r.fromStageId ?? undefined,
+      toStageId:        r.toStageId,
+      performedBy:      r.performedBy,
+      rejected:         r.rejected,
+      notes:            r.notes ?? undefined,
+      occurredAt:       r.occurredAt,
+    }));
+  }
+
+  async listTransitionsByWorkOrder(workOrderId: string): Promise<StageTransitionProps[]> {
+    const items = await this.db.select({ id: schema.productionItems.productionItemId })
+      .from(schema.productionItems)
+      .where(eq(schema.productionItems.workOrderId, workOrderId));
+    if (items.length === 0) return [];
+    const ids = items.map(i => i.id);
+    const rows = await this.db.select().from(schema.stageTransitions)
+      .where(inArray(schema.stageTransitions.productionItemId, ids))
+      .orderBy(asc(schema.stageTransitions.occurredAt));
+    return rows.map(r => ({
+      transitionId:     r.transitionId,
+      productionItemId: r.productionItemId,
+      fromStageId:      r.fromStageId ?? undefined,
+      toStageId:        r.toStageId,
+      performedBy:      r.performedBy,
+      rejected:         r.rejected,
+      notes:            r.notes ?? undefined,
+      occurredAt:       r.occurredAt,
+    }));
+  }
+
   async countFinalStageItems(workOrderId: string, finalStageId: string): Promise<{ total: number; completed: number }> {
     const [totalRows, completedRows] = await Promise.all([
       this.db.select({ c: count() }).from(schema.productionItems)

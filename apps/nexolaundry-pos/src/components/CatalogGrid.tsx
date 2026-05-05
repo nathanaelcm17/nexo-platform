@@ -21,6 +21,7 @@ const ITEM_TYPE_LABEL: Record<string, string> = {
 
 export function CatalogGrid() {
   const [category, setCategory] = useState<string | null>(null);
+  const [search,   setSearch]   = useState('');
   const addItem = usePosStore(s => s.addItem);
 
   const { data: items = [], isLoading } = useQuery({
@@ -31,9 +32,13 @@ export function CatalogGrid() {
 
   const categories = Array.from(new Set(items.map(i => i.category).filter(Boolean))) as string[];
 
-  const filtered = category
-    ? items.filter(i => i.category === category)
-    : items;
+  const filtered = items
+    .filter(i => category ? i.category === category : true)
+    .filter(i => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q);
+    });
 
   if (isLoading) {
     return (
@@ -45,9 +50,17 @@ export function CatalogGrid() {
 
   return (
     <div className="flex flex-col gap-3 flex-1 min-h-0">
-      {/* Filtros por categoría */}
+      {/* Buscador + filtros por categoría */}
       {categories.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0">
+        <div className="flex flex-col gap-2 flex-shrink-0">
+        <input
+          type="text"
+          className="input-field text-sm"
+          placeholder="🔍 Buscar servicio…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div className="flex gap-2 overflow-x-auto pb-1">
           <button
             onClick={() => setCategory(null)}
             className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
@@ -71,6 +84,7 @@ export function CatalogGrid() {
               {cat}
             </button>
           ))}
+        </div>
         </div>
       )}
 

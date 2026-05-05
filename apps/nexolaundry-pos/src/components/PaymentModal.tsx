@@ -55,20 +55,22 @@ function linesToReceiptLines(lines: DraftLine[]) {
 }
 
 export function PaymentModal({ onClose, onSuccess, orderOverride }: PaymentModalProps) {
-  const { customer, lines, branchId, subtotal, itbis, total, clearOrder } = usePosStore(s => ({
+  const { customer, lines, branchId, total, clearOrder, priority, promisedAt, notes } = usePosStore(s => ({
     customer:   s.customer,
     lines:      s.lines,
     branchId:   s.branchId,
-    subtotal:   s.subtotal,
-    itbis:      s.itbis,
     total:      s.total,
     clearOrder: s.clearOrder,
+    priority:   s.priority,
+    promisedAt: s.promisedAt,
+    notes:      s.notes,
   }));
 
-  // Si viene de OrderHistory (orden ya existente), usamos su total directamente
-  const orderTotal    = orderOverride ? orderOverride.total    : total();
-  const orderSubtotal = orderOverride ? orderOverride.total / 1.18 : subtotal();
-  const orderItbis    = orderOverride ? orderOverride.total - orderTotal / 1.18 : itbis();
+  // Si la orden ya tiene pagos parciales, cobrar solo el saldo pendiente
+  const alreadyPaid   = orderOverride?.paidAmount ?? 0;
+  const orderTotal    = orderOverride ? orderOverride.total - alreadyPaid : total();
+  const orderSubtotal = orderTotal / 1.18;
+  const orderItbis    = orderTotal - orderSubtotal;
 
   const [method,        setMethod]        = useState<string>('cash');
   const [ncfType,       setNcfType]       = useState<string>('B02');
@@ -98,17 +100,23 @@ export function PaymentModal({ onClose, onSuccess, orderOverride }: PaymentModal
       let invoiceLines: Array<{ description: string; quantity: number; unitPrice: number; taxRate: number }>;
 
       if (orderOverride) {
-        // Orden ya existente (ready) — solo facturar y cobrar
+        // Orden ya existente — facturar el saldo pendiente (o el total si no hay pagos previos)
         resolvedOrderId    = orderOverride.orderId;
         resolvedCustomerId = orderOverride.customerId;
         resolvedBranchId   = orderOverride.branchId;
-        invoiceLines       = [{ description: `Orden ${orderOverride.orderNumber}`, quantity: 1, unitPrice: orderOverride.total / 1.18, taxRate: 18 }];
+        const desc = alreadyPaid > 0
+          ? `Saldo orden ${orderOverride.orderNumber}`
+          : `Orden ${orderOverride.orderNumber}`;
+        invoiceLines = [{ description: desc, quantity: 1, unitPrice: orderTotal / 1.18, taxRate: 18 }];
       } else {
         if (!customer) return;
         const orderRes = await ordersApi.create({
           customerId:      customer.customerId,
           branchId:        branchId || '50cb49d0-0c62-4582-8597-9e3fbae83835',
           fulfillmentType: 'laundry_production',
+          priority,
+          promisedAt:      promisedAt || undefined,
+          notes:           notes || undefined,
           lines: lines.map(l => ({
             catalogItemId: l.catalogItemId,
             description:   l.name,
@@ -173,11 +181,18 @@ export function PaymentModal({ onClose, onSuccess, orderOverride }: PaymentModal
 
         {/* Total */}
         <div className="bg-slate-900 rounded-xl p-4 text-center">
-          <p className="text-slate-400 text-sm">Total a cobrar</p>
+          <p className="text-slate-400 text-sm">
+            {orderOverride && alreadyPaid > 0 ? 'Saldo pendiente' : 'Total a cobrar'}
+          </p>
           <p className="text-4xl font-bold text-brand mt-1">{fmt(orderTotal)}</p>
           <p className="text-slate-500 text-xs mt-1">
             Subtotal {fmt(orderSubtotal)} + ITBIS {fmt(orderItbis)}
           </p>
+          {orderOverride && alreadyPaid > 0 && (
+            <p className="text-xs text-slate-500 mt-1">
+              Total orden {fmt(orderOverride.total)} · Ya pagado {fmt(alreadyPaid)}
+            </p>
+          )}
         </div>
 
         {/* NCF */}

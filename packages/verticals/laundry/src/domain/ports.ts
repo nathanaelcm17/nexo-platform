@@ -34,6 +34,8 @@ export interface ProductionItemRepository {
   findByWorkOrder(workOrderId: string): Promise<ProductionItem[]>;
   save(item: ProductionItem): Promise<void>;
   saveTransition(transition: StageTransitionProps): Promise<void>;
+  listTransitionsByItem(productionItemId: string): Promise<StageTransitionProps[]>;
+  listTransitionsByWorkOrder(workOrderId: string): Promise<StageTransitionProps[]>;
   countFinalStageItems(workOrderId: string, finalStageId: string): Promise<{ total: number; completed: number }>;
 }
 

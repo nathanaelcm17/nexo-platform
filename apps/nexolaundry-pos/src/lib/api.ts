@@ -88,6 +88,11 @@ export const authApi = {
 export const customersApi = {
   search: (q: string) =>
     apiFetch<CustomerSnapshot[]>(`/api/v1/customers?q=${encodeURIComponent(q)}&limit=10`),
+  create: (body: CreateCustomerBody) =>
+    apiFetch<{ customerId: string; customerCode: string }>('/api/v1/customers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 // --- Catalog ---
@@ -101,6 +106,14 @@ export const ordersApi = {
   confirm: (orderId: string)        => apiFetch(`/api/v1/orders/${orderId}/confirm`, { method: 'POST' }),
   cancel:  (orderId: string, reason: string) => apiFetch(`/api/v1/orders/${orderId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
   list:    (params?: string)        => apiFetch<OrderSummary[]>(`/api/v1/orders${params ? `?${params}` : ''}`),
+  search:  (opts: { q?: string; status?: string; date?: string; limit?: number }) => {
+    const p = new URLSearchParams();
+    if (opts.q)      p.set('q',      opts.q);
+    if (opts.status) p.set('status', opts.status);
+    if (opts.date)   p.set('date',   opts.date);
+    if (opts.limit)  p.set('limit',  String(opts.limit));
+    return apiFetch<OrderSummary[]>(`/api/v1/orders?${p.toString()}`);
+  },
 };
 
 // --- Billing ---
@@ -129,11 +142,16 @@ export const branchesApi = {
 
 // --- Laundry ---
 export const laundryApi = {
-  workOrders: () => apiFetch<WorkOrderWithItems[]>('/api/v1/laundry/work-orders'),
-  stages:     () => apiFetch<StageProps[]>('/api/v1/laundry/stages'),
-  advanceItem: (itemId: string, body: { toStageId: string; notes?: string; rejected?: boolean }) =>
+  workOrders:     () => apiFetch<WorkOrderWithItems[]>('/api/v1/laundry/work-orders'),
+  stages:         () => apiFetch<StageProps[]>('/api/v1/laundry/stages'),
+  advanceItem:    (itemId: string, body: { toStageId: string; notes?: string; rejected?: boolean }) =>
     apiFetch(`/api/v1/laundry/production-items/${itemId}/advance`, { method: 'POST', body: JSON.stringify(body) }),
-  orderWorkOrder: (orderId: string) => apiFetch<WorkOrderWithItems>(`/api/v1/laundry/orders/${orderId}/work-order`),
+  orderWorkOrder: (orderId: string) => apiFetch<WorkOrderDetail>(`/api/v1/laundry/orders/${orderId}/work-order`),
+};
+
+// --- Orders detail ---
+export const ordersDetailApi = {
+  getById: (orderId: string) => apiFetch<OrderDetail>(`/api/v1/orders/${orderId}`),
 };
 
 // --- Orders (extend) ---
@@ -175,20 +193,34 @@ export interface CatalogItemSnapshot {
   active: boolean;
 }
 
+export interface OrderCustomer {
+  customerCode?:  string;
+  customerType?:  string;
+  firstName?:     string;
+  lastName?:      string;
+  businessName?:  string;
+  phone?:         string;
+  documentNumber?: string;
+}
+
 export interface OrderSummary {
-  orderId:       string;
-  orderNumber:   string;
-  customerId:    string;
-  branchId:      string;
-  status:        string;
-  priority:      string;
-  total:         number;
-  paidAmount:    number;
-  paymentStatus: string;
-  receivedAt:    string;
-  confirmedAt?:  string;
-  readyAt?:      string;
-  promisedAt?:   string;
+  orderId:         string;
+  orderNumber:     string;
+  customerId:      string;
+  branchId:        string;
+  status:          string;
+  priority:        string;
+  fulfillmentType?: string;
+  total:           number;
+  paidAmount:      number;
+  paymentStatus:   string;
+  receivedAt:      string;
+  confirmedAt?:    string;
+  readyAt?:        string;
+  promisedAt?:     string;
+  cancelledAt?:    string;
+  deliveredAt?:    string;
+  customer?:       OrderCustomer;
 }
 
 export interface CreateOrderBody {
@@ -251,6 +283,17 @@ export interface CashSessionSnapshot {
   openingBalance: number;
 }
 
+export interface CreateCustomerBody {
+  customerType:   'individual' | 'business';
+  firstName?:     string;
+  lastName?:      string;
+  businessName?:  string;
+  documentType?:  'cedula' | 'rnc' | 'passport';
+  documentNumber?: string;
+  phone?:         string;
+  email?:         string;
+}
+
 export interface Branch {
   branch_id: string;
   name: string;
@@ -302,4 +345,69 @@ export interface WorkOrderWithItems {
   createdAt: string;
   updatedAt: string;
   items: ProductionItemSnap[];
+}
+
+export interface StageTransition {
+  transitionId: string;
+  fromStage:    string | null;
+  toStage:      string;
+  rejected:     boolean;
+  notes?:       string;
+  occurredAt:   string;
+}
+
+export interface ProductionItemDetail extends ProductionItemSnap {
+  currentStageName: string | null;
+  transitions:      StageTransition[];
+}
+
+export interface WorkOrderDetail {
+  workOrderId:  string;
+  orderId:      string;
+  branchId:     string;
+  priority:     string;
+  status:       string;
+  slaDeadline?: string;
+  startedAt?:   string;
+  completedAt?: string;
+  createdAt:    string;
+  updatedAt:    string;
+  items:        ProductionItemDetail[];
+}
+
+export interface OrderLine {
+  lineId:        string;
+  catalogItemId: string;
+  description:   string;
+  quantity:      number;
+  unitOfMeasure: string;
+  unitPrice:     number;
+  discount:      number;
+  taxRate:       number;
+  lineTotal:     number;
+}
+
+export interface OrderDetail {
+  orderId:          string;
+  orderNumber:      string;
+  customerId:       string;
+  branchId:         string;
+  status:           string;
+  priority:         string;
+  fulfillmentType?: string;
+  subtotal:         number;
+  discount:         number;
+  taxTotal:         number;
+  total:            number;
+  paymentStatus:    string;
+  paidAmount:       number;
+  notes?:           string;
+  cancelledReason?: string;
+  receivedAt:       string;
+  confirmedAt?:     string;
+  readyAt?:         string;
+  deliveredAt?:     string;
+  cancelledAt?:     string;
+  lines:            OrderLine[];
+  customer?:        OrderCustomer & { email?: string; documentType?: string };
 }

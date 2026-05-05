@@ -177,8 +177,8 @@ export class Order {
   }
 
   markReady(): void {
-    if (this.props.status !== 'in_fulfillment') {
-      throw new InvariantViolationError('Order must be in_fulfillment to be marked ready');
+    if (this.props.status !== 'in_fulfillment' && this.props.status !== 'confirmed') {
+      throw new InvariantViolationError(`Cannot mark ready order in status '${this.props.status}'`);
     }
     this.props.status = 'ready';
     this.props.readyAt = new Date();

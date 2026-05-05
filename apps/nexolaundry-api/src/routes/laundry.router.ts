@@ -7,6 +7,8 @@ import {
   DrizzleStageRepository,
   AdvanceStageUseCase,
 } from '@nexo/vertical-laundry';
+import { DrizzleOrderRepository } from '@nexo/core-orders';
+import { OrderId } from '@nexo/core-shared-kernel';
 
 const advanceSchema = z.object({
   toStageId: z.string().uuid(),
@@ -57,17 +59,40 @@ export function createLaundryRouter(): Router {
     } catch (err) { next(err); }
   });
 
-  // GET /api/v1/laundry/orders/:orderId/work-order — work order de una orden
+  // GET /api/v1/laundry/orders/:orderId/work-order — work order con items y trazabilidad
   router.get('/orders/:orderId/work-order', async (req, res, next) => {
     try {
       const workOrderRepo      = new DrizzleWorkOrderRepository(req.db!);
       const productionItemRepo = new DrizzleProductionItemRepository(req.db!);
+      const stageRepo          = new DrizzleStageRepository(req.db!);
 
       const workOrder = await workOrderRepo.findByOrderId(req.params.orderId);
       if (!workOrder) { res.status(404).json({ code: 'NOT_FOUND', message: 'WorkOrder not found' }); return; }
 
-      const items = await productionItemRepo.findByWorkOrder(workOrder.toSnapshot().workOrderId);
-      res.json({ ...workOrder.toSnapshot(), items: items.map(i => i.toSnapshot()) });
+      const [items, stages, transitions] = await Promise.all([
+        productionItemRepo.findByWorkOrder(workOrder.workOrderId),
+        stageRepo.listActive(),
+        productionItemRepo.listTransitionsByWorkOrder(workOrder.workOrderId),
+      ]);
+
+      const stageMap = new Map(stages.map(s => [s.stageId, s.name]));
+
+      const itemsWithHistory = items.map(i => {
+        const snap = i.toSnapshot();
+        const itemTransitions = transitions
+          .filter(t => t.productionItemId === snap.productionItemId)
+          .map(t => ({
+            transitionId: t.transitionId,
+            fromStage:    t.fromStageId ? stageMap.get(t.fromStageId) ?? t.fromStageId : null,
+            toStage:      stageMap.get(t.toStageId) ?? t.toStageId,
+            rejected:     t.rejected,
+            notes:        t.notes,
+            occurredAt:   t.occurredAt,
+          }));
+        return { ...snap, currentStageName: snap.currentStageId ? stageMap.get(snap.currentStageId) : null, transitions: itemTransitions };
+      });
+
+      res.json({ ...workOrder.toSnapshot(), items: itemsWithHistory });
     } catch (err) { next(err); }
   });
 
@@ -82,13 +107,43 @@ export function createLaundryRouter(): Router {
       const stageRepo          = new DrizzleStageRepository(req.db!);
 
       const useCase = new AdvanceStageUseCase(productionItemRepo, workOrderRepo, stageRepo);
-      await useCase.execute({
+      const result  = await useCase.execute({
         productionItemId: req.params.id,
         toStageId:        body.data.toStageId,
         performedBy:      req.user!.userId,
         rejected:         body.data.rejected,
         notes:            body.data.notes,
       });
+
+      // Cuando la work order arranca, marcar la orden en producción
+      if (result.workOrderStarted && result.orderId) {
+        try {
+          const orderRepo = new DrizzleOrderRepository(req.db!);
+          const order = await orderRepo.findById(OrderId(result.orderId));
+          if (order && order.toSnapshot().status === 'confirmed') {
+            order.startFulfillment('laundry');
+            await orderRepo.save(order);
+          }
+        } catch {
+          // No bloquear la respuesta
+        }
+      }
+
+      // Cuando la work order se completa, marcar la orden como lista para retiro
+      if (result.workOrderCompleted && result.orderId) {
+        try {
+          const orderRepo = new DrizzleOrderRepository(req.db!);
+          const order = await orderRepo.findById(OrderId(result.orderId));
+          const status = order?.toSnapshot().status;
+          if (order && status !== 'ready' && status !== 'delivered' && status !== 'cancelled') {
+            order.markReady();
+            await orderRepo.save(order);
+          }
+        } catch {
+          // No bloquear la respuesta si falla el update del estado
+        }
+      }
+
       res.status(204).send();
     } catch (err) { next(err); }
   });
